@@ -8,7 +8,7 @@
     body { font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 1100px; }
     h1 { margin: 0 0 8px; }
     .muted { color: #666; }
-    .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, minmax(0, 1fr)); }
     .card { border: 1px solid #ddd; border-radius: 10px; padding: 14px; background: #fff; }
     .col6 { grid-column: span 6; } .col12 { grid-column: span 12; } .col4 { grid-column: span 4; } .col3{grid-column:span 3;}
     label { display: block; margin: 8px 0 4px; font-weight: 600; }
@@ -24,6 +24,20 @@
     .row > * { flex:1; }
     .small { font-size: 13px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    /* Evita desbordes por padding/border */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    /* Permite que los items del grid/flex se encojan y no desborden */
+    .grid > * { min-width: 0; }
+    .row > * { min-width: 0; }
+    
+    /* Inputs/selects: nunca exceder el contenedor */
+    input, select, textarea, button { max-width: 100%; }
+    
+    /* Responsive: en pantallas chicas apilar */
+    @media (max-width: 900px) {
+      .col6, .col4, .col3, .col2 { grid-column: span 12; }
+    }
   </style>
 </head>
 <body>
@@ -518,3 +532,4 @@
   </script>
 </body>
 </html>
+
