@@ -24,14 +24,18 @@ export async function sha256(text) {
 async function postJson(url, payload) {
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    // CLAVE: usar un Content-Type "simple" para evitar OPTIONS (preflight)
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify(payload),
   });
+
   const txt = await res.text();
   let data;
-  try { data = JSON.parse(txt); } catch { data = { ok: false, error: "Respuesta no JSON del servidor", raw: txt }; }
+  try { data = JSON.parse(txt); }
+  catch { data = { ok: false, error: "Respuesta no JSON del servidor", raw: txt }; }
   return data;
 }
+
 
 export async function registerUser(username, password) {
   const u = username.trim();
