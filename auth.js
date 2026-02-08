@@ -1,6 +1,6 @@
 // auth.js - cliente para Apps Script WebApp
 // Config: pegá acá tu URL /exec del Apps Script (webapp)
-export const URL_EXEC = "TU_URL_EXEC_REAL"; // <-- REEMPLAZAR
+export const URL_EXEC = "https://script.google.com/macros/s/AKfycbxPeWTfUGeQrFbPWB9vYzpBl2EMaPpT7kEIJcQgCFOIfusoI4NOSO0GW8V_sLIQ8dKc/exec"; // <-- REEMPLAZAR
 
 async function post_(payload) {
   const res = await fetch(URL_EXEC, {
