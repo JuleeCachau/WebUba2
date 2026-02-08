@@ -698,9 +698,10 @@
       }
       else { showAuth(""); }
     } catch (e) {
-      showAuth("Error iniciando la app. ¿Falta materias.json o auth.js?");
       console.error(e);
+      showError("Error iniciando la app: " + e.message);
     }
+
   })();
 </script>
   </div>
