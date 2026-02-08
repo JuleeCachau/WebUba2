@@ -1,5 +1,5 @@
 // auth.js — Registro/Login + datos usando Google Apps Script (Google Sheets)
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyO9NdV_5LSfSboTkOw8zlmT_Ciif9Fa2_1DlZxpmue0hZpfQKZB0k3UbHQQ2b3FpI/exec"; // <-- si cambia tu WebApp (/exec), reemplazá esta URL
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxzBKbLSFuSRvcD5tnSGVW863qWqXu1ua5Cbu4a6qj8fQiUHvpH1A7Dc7txkbEhasgb/exec"; // <-- si cambia tu WebApp (/exec), reemplazá esta URL
 
 // ===== Validaciones =====
 export function validateDni(dni) {
