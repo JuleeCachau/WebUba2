@@ -269,7 +269,7 @@
 </div>
 
 <script type="module">
-  import { registerUser, loginUser, listMaterias, listObligatorias, loadProgress, saveProgress } from "./auth.js";
+  import { registerUser, loginUser, listMaterias, loadProgress, saveProgress, listMateriaOrientacion } from "./auth.js";
 
   
   // ===== UX helpers (loading) =====
@@ -727,7 +727,7 @@ function plannedAreas() {
 
     // cargar obligatorias segun orientacion
     const currentOri = document.getElementById("orientacion").value;
-    const rObl = await listObligatorias(currentOri);
+    const rObl = await listMateriaOrientacion(currentOri);
     OBL_SET = new Set((rObl.materias_obligatorias || []).map(Number));
 
 
