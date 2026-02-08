@@ -29,7 +29,42 @@
     .small { font-size: 13px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     @media (max-width: 900px) { .col6, .col4, .col3, .col2, .col9 { grid-column: span 12; } }
-  </style>
+  
+    /* ===== Loading overlay ===== */
+    #loadingOverlay{
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 20px;
+    }
+    #loadingOverlay .box{
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 14px;
+      padding: 14px 16px;
+      display:flex;
+      gap: 12px;
+      align-items:center;
+      box-shadow: 0 12px 40px rgba(0,0,0,.12);
+      max-width: 420px;
+      width: 100%;
+    }
+    #loadingOverlay .spinner{
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 3px solid #ddd;
+      border-top-color: #333;
+      animation: spin .8s linear infinite;
+      flex: 0 0 auto;
+    }
+    #loadingOverlay .txt{ font-weight: 700; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+</style>
 </head>
 <body>
   <div class="container">
@@ -228,7 +263,48 @@
 <script type="module">
   import { registerUser, loginUser, listMaterias, loadProgress, saveProgress, listMateriaOrientacion } from "./auth.js";
 
-  const KEY = "cpo_proyector_v2";
+  
+  // ===== UX helpers (loading) =====
+  function showLoading(text="Procesando…") {
+    const ov = document.getElementById("loadingOverlay");
+    const tx = document.getElementById("loadingText");
+    if (tx) tx.textContent = text;
+    if (ov) ov.style.display = "flex";
+  }
+  function hideLoading() {
+    const ov = document.getElementById("loadingOverlay");
+    if (ov) ov.style.display = "none";
+  }
+
+  // ===== Autosave (debounce) =====
+  let _autoSaveTimer = null;
+  function scheduleAutoSave(label="Guardando cambios…") {
+    clearTimeout(_autoSaveTimer);
+    _autoSaveTimer = setTimeout(async () => {
+      const sess = getSession();
+      if (!sess?.usuario_id) return;
+      const s = normalizeState(loadState());
+      readDualListsIntoState(s);
+      saveState(s);
+
+      showLoading(label);
+      try {
+        const progreso = {
+          plan: s.plan,
+          orientacion_id: s.orientacion_id,
+          puntosPrevios: s.puntosPrevios,
+          aprobadas_cpc: s.aprobadas_cpc,
+          aprobadas_cpo: s.aprobadas_cpo,
+          aprobadas_puntos: s.aprobadas || []
+        };
+        await saveProgress(Number(sess.usuario_id), progreso);
+      } finally {
+        hideLoading();
+      }
+    }, 600);
+  }
+
+const KEY = "cpo_proyector_v2";
   const SESSION_KEY = "cpo_session_user";
   const ORIENTACIONES = [
     { id: 1, nombre: "Derecho Público (Suborientación: Administrativo)" },
@@ -245,7 +321,33 @@
   let PLAN = [];
   let MAT_SHEET = []; // materias desde Google Sheets (materia_id, materia, instancia_id)
   let REL = []; // materia_orientacion desde Google Sheets
-  let OBLIG_CPO = new Set(); // materias obligatorias para la orientacion elegida
+  let OBLIG_CPO = new Set();
+
+  function recomputeObligCpo(orientacionId) {
+    const id = Number(orientacionId || 0);
+    OBLIG_CPO = new Set(
+      (REL || [])
+        .filter(x => Number(x.orientacion_id) === id)
+        .filter(x => ["obligatoria_general","obligatorio_por_regla","principal","derivado_obligatorio"].includes(String(x.categoria)))
+        .map(x => Number(x.materia_id))
+    );
+  }
+
+  function rerenderCpoListsOnly() {
+    wireDualList(3, "cpo_pending", "cpo_approved", "cpo_to_approved", "cpo_to_pending", "aprobadas_cpo", OBLIG_CPO);
+
+    // Reaccionar al cambio de orientación SIN esperar "Guardar"
+    document.getElementById("orientacion").addEventListener("change", () => {
+      const s = normalizeState(loadState());
+      s.orientacion_id = Number(document.getElementById("orientacion").value || 0);
+      saveState(s);
+      recomputeObligCpo(s.orientacion_id);
+      rerenderCpoListsOnly();
+    });
+
+  }
+
+ // materias obligatorias para la orientacion elegida
 
   function setSession(username, usuario_id) { localStorage.setItem(SESSION_KEY, JSON.stringify({ username, usuario_id, ts: Date.now() })); }
   function getSession() { const raw = localStorage.getItem(SESSION_KEY); return raw ? JSON.parse(raw) : null; }
@@ -337,13 +439,12 @@
     renderSelectOptions(pendingSel, pending, obligSet);
     renderSelectOptions(approvedSel, approved, obligSet);
 
-    document.getElementById(toApprovedBtnId).onclick = () => moveSelected(pendingSel, approvedSel);
-    document.getElementById(toPendingBtnId).onclick = () => moveSelected(approvedSel, pendingSel);
-
+    document.getElementById(toApprovedBtnId).onclick = () => { moveSelected(pendingSel, approvedSel); scheduleAutoSave(); };
+    document.getElementById(toPendingBtnId).onclick = () => { moveSelected(approvedSel, pendingSel); scheduleAutoSave(); };
     // doble click
-    pendingSel.ondblclick = () => moveSelected(pendingSel, approvedSel);
-    approvedSel.ondblclick = () => moveSelected(approvedSel, pendingSel);
-  }
+    pendingSel.ondblclick = () => { moveSelected(pendingSel, approvedSel); scheduleAutoSave(); };
+    approvedSel.ondblclick = () => { moveSelected(approvedSel, pendingSel); scheduleAutoSave(); };
+    }
 
   function readDualListsIntoState(state) {
     state.aprobadas_cpc = Array.from(document.getElementById("cpc_approved").options).map(o => Number(o.value));
@@ -621,34 +722,42 @@
     renderCatalog();
     wireSearch();
 
+    
     document.getElementById("save").addEventListener("click", async () => {
-      const s = normalizeState(loadState());
-      s.plan = document.getElementById("plan").value;
-      s.orientacion_id = Number(document.getElementById("orientacion").value);
-      s.puntosPrevios = Number(document.getElementById("puntosPrevios").value || 0);
-      readDualListsIntoState(s);
-      saveState(s);
+      showLoading("Guardando progreso…");
+      try {
+        const s = normalizeState(loadState());
+        s.plan = document.getElementById("plan").value;
+        s.orientacion_id = Number(document.getElementById("orientacion").value || 0);
+        s.puntosPrevios = Number(document.getElementById("puntosPrevios").value || 0);
 
-      // Guardar progreso en Sheets (multi-dispositivo)
-      const sess = getSession();
-      if (sess?.usuario_id) {
-        const progreso = {
-          plan: s.plan,
-          orientacion_id: s.orientacion_id,
-          puntosPrevios: s.puntosPrevios,
-          aprobadas_cpc: s.aprobadas_cpc,
-          aprobadas_cpo: s.aprobadas_cpo,
-          aprobadas_puntos: s.aprobadas || []
-        };
-        const r = await saveProgress(Number(sess.usuario_id), progreso);
-        if (!r.ok) console.warn("save_progress:", r);
+        readDualListsIntoState(s);
+        saveState(s);
+
+        // Guardar progreso en Sheets (multi-dispositivo)
+        const sess = getSession();
+        if (sess?.usuario_id) {
+          const progreso = {
+            plan: s.plan,
+            orientacion_id: s.orientacion_id,
+            puntosPrevios: s.puntosPrevios,
+            aprobadas_cpc: s.aprobadas_cpc,
+            aprobadas_cpo: s.aprobadas_cpo,
+            aprobadas_puntos: s.aprobadas || []
+          };
+          await saveProgress(Number(sess.usuario_id), progreso);
+        }
+
+        // actualizar obligatorias por si cambió orientación
+        recomputeObligCpo(s.orientacion_id);
+        renderSelectors(s);
+        renderPanel(s);
+        renderPlanBox();
+        renderCatalog();
+        rerenderCpoListsOnly();
+      } finally {
+        hideLoading();
       }
-
-      saveState(s);
-      renderSelectors(s);
-      renderPanel(s);
-      renderPlanBox();
-      renderCatalog();
     });
 
     document.getElementById("reset").addEventListener("click", () => {
@@ -657,7 +766,17 @@
       location.reload();
     });
 
-    document.getElementById("btnSuggest").addEventListener("click", suggestPlan);
+    
+    document.getElementById("btnSuggest").addEventListener("click", async () => {
+      showLoading("Generando sugerencia…");
+      try {
+        // micro-delay para que el loader se pinte antes de calcular
+        await new Promise(r => setTimeout(r, 120));
+        suggestPlan();
+      } finally {
+        hideLoading();
+      }
+    });
   }
 
   function showAuth(msg="") {
@@ -673,48 +792,64 @@
 
   document.getElementById("btnLogout").addEventListener("click", () => { clearSession(); location.reload(); });
 
+  
   document.getElementById("btnLogin").addEventListener("click", async (e) => {
     e.preventDefault();
-    const u = document.getElementById("authUser").value;
-    const p = document.getElementById("authPass").value;
-    const r = await loginUser(u, p);
-    if (!r.ok) return showAuth(r.error || "Login falló.");
-    setSession(u.trim(), r.usuario_id);
-    showApp(u.trim());
-    // Cargar progreso desde Sheets (si existe) y guardarlo localmente
-    if (r.usuario_id) {
-      const rp = await loadProgress(Number(r.usuario_id));
-      if (rp.ok && rp.progreso) {
-        const local = normalizeState(loadState());
-        const merged = { ...local, ...rp.progreso };
-        // compat: nombres esperados por app
-        if (Array.isArray(merged.aprobadas_puntos)) merged.aprobadas = merged.aprobadas_puntos;
-        saveState(merged);
+    showLoading("Iniciando sesión…");
+    try {
+      const u = document.getElementById("authUser").value;
+      const p = document.getElementById("authPass").value;
+
+      const r = await loginUser(u, p);
+      if (!r.ok) return showAuth(r.error || "Login falló.");
+
+      setSession(u.trim(), r.usuario_id);
+      showApp(u.trim());
+
+      // cargar progreso desde Sheets (si existe) y guardarlo localmente
+      if (r.usuario_id) {
+        showLoading("Cargando tu progreso…");
+        const rp = await loadProgress(Number(r.usuario_id));
+        if (rp.ok && rp.progreso) {
+          const local = normalizeState(loadState());
+          const merged = { ...local, ...rp.progreso };
+          if (Array.isArray(merged.aprobadas_puntos)) merged.aprobadas = merged.aprobadas_puntos;
+          saveState(merged);
+        }
       }
+
+      showLoading("Cargando materias…");
+      await initApp();
+    } catch (err) {
+      console.error(err);
+      showAuth("Error: " + (err?.message || err));
+    } finally {
+      hideLoading();
     }
-    await initApp();
   });
 
+  
   document.getElementById("btnRegister").addEventListener("click", async (e) => {
     e.preventDefault();
-    const u = document.getElementById("authUser").value;
-    const p = document.getElementById("authPass").value;
-    const r = await registerUser(u, p);
-    if (!r.ok) return showAuth(r.error || "Registro falló.");
-    setSession(u.trim(), r.usuario_id);
-    showApp(u.trim());
-    // Cargar progreso desde Sheets (si existe) y guardarlo localmente
-    if (r.usuario_id) {
-      const rp = await loadProgress(Number(r.usuario_id));
-      if (rp.ok && rp.progreso) {
-        const local = normalizeState(loadState());
-        const merged = { ...local, ...rp.progreso };
-        // compat: nombres esperados por app
-        if (Array.isArray(merged.aprobadas_puntos)) merged.aprobadas = merged.aprobadas_puntos;
-        saveState(merged);
-      }
+    showLoading("Creando cuenta…");
+    try {
+      const u = document.getElementById("authUser").value;
+      const p = document.getElementById("authPass").value;
+
+      const r = await registerUser(u, p);
+      if (!r.ok) return showAuth(r.error || "Registro falló.");
+
+      setSession(u.trim(), r.usuario_id);
+      showApp(u.trim());
+
+      showLoading("Cargando materias…");
+      await initApp();
+    } catch (err) {
+      console.error(err);
+      showAuth("Error: " + (err?.message || err));
+    } finally {
+      hideLoading();
     }
-    await initApp();
   });
 
   (async function boot(){
@@ -742,5 +877,13 @@
   })();
 </script>
   </div>
+
+  <div id="loadingOverlay" aria-live="polite" aria-busy="true">
+    <div class="box">
+      <div class="spinner"></div>
+      <div class="txt" id="loadingText">Procesando…</div>
+    </div>
+  </div>
+
 </body>
 </html>
