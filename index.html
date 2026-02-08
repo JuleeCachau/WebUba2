@@ -226,24 +226,26 @@
 </div>
 
 <script type="module">
-  import { registerUser, loginUser, listMaterias, loadProgress, saveProgress } from "./auth.js";
+  import { registerUser, loginUser, listMaterias, loadProgress, saveProgress, listMateriaOrientacion } from "./auth.js";
 
   const KEY = "cpo_proyector_v2";
   const SESSION_KEY = "cpo_session_user";
   const ORIENTACIONES = [
-    { id: "privado", nombre: "Derecho Privado" },
-    { id: "penal", nombre: "Derecho Penal" },
-    { id: "laboral", nombre: "Derecho Laboral" },
-    { id: "int_publico", nombre: "Derecho Internacional Público" },
-    { id: "administrativo", nombre: "Derecho Administrativo" },
-    { id: "tributario", nombre: "Derecho Tributario" },
-    { id: "empresarial", nombre: "Derecho Empresarial" },
-    { id: "notarial", nombre: "Derecho Notarial" }
+    { id: 1, nombre: "Derecho Público (Suborientación: Administrativo)" },
+    { id: 2, nombre: "Derecho Público (Suborientación: Internacional Público)" },
+    { id: 3, nombre: "Derecho Privado" },
+    { id: 4, nombre: "Derecho Notarial" },
+    { id: 5, nombre: "Derecho Empresarial" },
+    { id: 6, nombre: "Derecho Tributario" },
+    { id: 7, nombre: "Derecho Penal" },
+    { id: 8, nombre: "Derecho del Trabajo y de la Seguridad Social" }
   ];
 
   let DB = null;
   let PLAN = [];
   let MAT_SHEET = []; // materias desde Google Sheets (materia_id, materia, instancia_id)
+  let REL = []; // materia_orientacion desde Google Sheets
+  let OBLIG_CPO = new Set(); // materias obligatorias para la orientacion elegida
 
   function setSession(username, usuario_id) { localStorage.setItem(SESSION_KEY, JSON.stringify({ username, usuario_id, ts: Date.now() })); }
   function getSession() { const raw = localStorage.getItem(SESSION_KEY); return raw ? JSON.parse(raw) : null; }
@@ -251,7 +253,7 @@
 
   function loadState() {
     const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : { plan:"2008", orientacion:"penal", puntosPrevios:0, aprobadas:[], aprobadas_cpc:[], aprobadas_cpo:[] };
+    return raw ? JSON.parse(raw) : { plan:"2008", orientacion_id:7, puntosPrevios:0, aprobadas:[], aprobadas_cpc:[], aprobadas_cpo:[] };
   }
   function saveState(state) { localStorage.setItem(KEY, JSON.stringify(state)); }
 
@@ -259,6 +261,15 @@
   function pointsByType(t) { return (DB?.rules?.points?.[t]) ?? (t === "mensual" ? 1 : t === "bimestral" ? 2 : 4); }
 
   function normalizeState(state) {
+    // Migración: versiones viejas guardaban orientacion como texto (ej: "penal")
+    if (!state.orientacion_id && state.orientacion) {
+      const map = { administrativo:1, int_publico:2, privado:3, notarial:4, empresarial:5, tributario:6, penal:7, laboral:8 };
+      const mapped = map[String(state.orientacion).toLowerCase()];
+      if (mapped) state.orientacion_id = mapped;
+      delete state.orientacion;
+    }
+    if (!state.orientacion_id) state.orientacion_id = 7;
+
     state.aprobadas_cpc = Array.isArray(state.aprobadas_cpc) ? state.aprobadas_cpc.map(Number) : [];
     state.aprobadas_cpo = Array.isArray(state.aprobadas_cpo) ? state.aprobadas_cpo.map(Number) : [];
     return state;
@@ -268,8 +279,12 @@
     return MAT_SHEET.filter(m => Number(m.instancia_id) === Number(id));
   }
 
-  function renderSelectOptions(selectEl, items) {
-    selectEl.innerHTML = items.map(m => `<option value="${m.materia_id}">${esc(m.materia)}</option>`).join("");
+  function renderSelectOptions(selectEl, items, obligSet = null) {
+    selectEl.innerHTML = items.map(m => {
+      const isOblig = obligSet ? obligSet.has(Number(m.materia_id)) : false;
+      const label = isOblig ? `⭐ ${m.materia}` : m.materia;
+      return `<option value="${m.materia_id}">${esc(label)}</option>`;
+    }).join("");
   }
 
   function selectedValues(selectEl) {
@@ -310,7 +325,7 @@
     renderSelectOptions(srcSel, srcItems);
   }
 
-  function wireDualList(instanceId, pendingId, approvedId, toApprovedBtnId, toPendingBtnId, stateKey) {
+  function wireDualList(instanceId, pendingId, approvedId, toApprovedBtnId, toPendingBtnId, stateKey, obligSet = null) {
     const pendingSel = document.getElementById(pendingId);
     const approvedSel = document.getElementById(approvedId);
 
@@ -319,8 +334,8 @@
     const approved = all.filter(m => approvedIds.has(Number(m.materia_id))).sort((a,b)=>a.materia.localeCompare(b.materia,'es'));
     const pending = all.filter(m => !approvedIds.has(Number(m.materia_id))).sort((a,b)=>a.materia.localeCompare(b.materia,'es'));
 
-    renderSelectOptions(pendingSel, pending);
-    renderSelectOptions(approvedSel, approved);
+    renderSelectOptions(pendingSel, pending, obligSet);
+    renderSelectOptions(approvedSel, approved, obligSet);
 
     document.getElementById(toApprovedBtnId).onclick = () => moveSelected(pendingSel, approvedSel);
     document.getElementById(toPendingBtnId).onclick = () => moveSelected(approvedSel, pendingSel);
@@ -355,7 +370,7 @@
 
   function renderSelectors(state) {
     document.getElementById("plan").innerHTML = (DB?.plans || ["2004","2008"]).map(p => `<option value="${p}" ${p===state.plan?"selected":""}>Plan ${p}</option>`).join("");
-    document.getElementById("orientacion").innerHTML = ORIENTACIONES.map(o => `<option value="${o.id}" ${o.id===state.orientacion?"selected":""}>${o.nombre}</option>`).join("");
+    document.getElementById("orientacion").innerHTML = ORIENTACIONES.map(o => `<option value="${o.id}" ${Number(o.id)===Number(state.orientacion_id)?"selected":""}>${o.nombre}</option>`).join("");
   }
 
   function renderPanel(state) {
@@ -572,15 +587,34 @@
     if (!rMat.ok) throw new Error(rMat.error || "No pude listar materias desde Sheets");
     MAT_SHEET = rMat.materias || [];
 
+    // Cargar relación materia x orientación (para marcar obligatorias)
+    const rRel = await listMateriaOrientacion();
+    if (rRel.ok) {
+      REL = rRel.rows || [];
+    } else {
+      console.warn("list_materia_orientacion:", rRel);
+      REL = [];
+    }
+
+
     const state = normalizeState(loadState());
+
+    // Set de materias CPO obligatorias según la orientación elegida
+    const orientacionId = Number(state.orientacion_id || 0);
+    OBLIG_CPO = new Set(
+      REL
+        .filter(x => Number(x.orientacion_id) === orientacionId)
+        .filter(x => ["obligatoria_general","obligatorio_por_regla","principal","derivado_obligatorio"].includes(String(x.categoria)))
+        .map(x => Number(x.materia_id))
+    );
     renderSelectors(state);
     document.getElementById("plan").value = state.plan;
-    document.getElementById("orientacion").value = state.orientacion;
+    document.getElementById("orientacion").value = String(state.orientacion_id);
     document.getElementById("puntosPrevios").value = state.puntosPrevios || 0;
 
     // Inicializar dual lists CPC/CPO
-    wireDualList(2, "cpc_pending", "cpc_approved", "cpc_to_approved", "cpc_to_pending", "aprobadas_cpc");
-    wireDualList(3, "cpo_pending", "cpo_approved", "cpo_to_approved", "cpo_to_pending", "aprobadas_cpo");
+    wireDualList(2, "cpc_pending", "cpc_approved", "cpc_to_approved", "cpc_to_pending", "aprobadas_cpc", null);
+    wireDualList(3, "cpo_pending", "cpo_approved", "cpo_to_approved", "cpo_to_pending", "aprobadas_cpo", OBLIG_CPO);
 
     renderPanel(state);
     renderPlanBox();
@@ -590,7 +624,7 @@
     document.getElementById("save").addEventListener("click", async () => {
       const s = normalizeState(loadState());
       s.plan = document.getElementById("plan").value;
-      s.orientacion = document.getElementById("orientacion").value;
+      s.orientacion_id = Number(document.getElementById("orientacion").value);
       s.puntosPrevios = Number(document.getElementById("puntosPrevios").value || 0);
       readDualListsIntoState(s);
       saveState(s);
@@ -600,7 +634,7 @@
       if (sess?.usuario_id) {
         const progreso = {
           plan: s.plan,
-          orientacion: s.orientacion,
+          orientacion_id: s.orientacion_id,
           puntosPrevios: s.puntosPrevios,
           aprobadas_cpc: s.aprobadas_cpc,
           aprobadas_cpo: s.aprobadas_cpo,
