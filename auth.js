@@ -1,5 +1,5 @@
 // auth.js — Registro/Login + datos usando Google Apps Script (Google Sheets)
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxIPi_QCbWuKIf9gJtf22jtbymlAFIUk7RuSC_Hfe8cWWydWR2eSzEbs4-PI2Gy6P2GLw/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpvUWjN7qcX_8B-7El5pGe0giRZRuGlB7p179IPGEmZ_JSS7L8QKc6jnmMJhfU3cj6/exec";
 
 // Reglas de password:
 // - mínimo 8
