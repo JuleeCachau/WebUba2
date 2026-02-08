@@ -14,7 +14,7 @@
     .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, minmax(0, 1fr)); }
     .grid > * { min-width: 0; }
     .card { border: 1px solid #ddd; border-radius: 10px; padding: 14px; background: #fff; }
-    .col6 { grid-column: span 6; } .col12 { grid-column: span 12; } .col4 { grid-column: span 4; } .col3{grid-column:span 3;} .col2{grid-column:span 2;}
+    .col6 { grid-column: span 6; } .col12 { grid-column: span 12; } .col4 { grid-column: span 4; } .col3{grid-column:span 3;} .col2{grid-column:span 2;} .col9 { grid-column: span 9; }
     label { display: block; margin: 8px 0 4px; font-weight: 600; }
     input, select, button { width: 100%; max-width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
     button { cursor: pointer; font-weight: 700; }
@@ -28,7 +28,7 @@
     .row > * { flex:1; min-width: 0; }
     .small { font-size: 13px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    @media (max-width: 900px) { .col6, .col4, .col3, .col2 { grid-column: span 12; } }
+    @media (max-width: 900px) { .col6, .col4, .col3, .col2, .col9 { grid-column: span 12; } }
   </style>
 </head>
 <body>
@@ -71,7 +71,7 @@
   </div>
 
   <div class="grid" style="margin-top:16px;">
-    <div class="card col6">
+    <div class="card col9">
       <h3 style="margin-top:0;">Perfil</h3>
 
       <label>Plan</label>
@@ -134,7 +134,7 @@
       </div>
     </div>
 
-    <div class="card col6">
+    <div class="card col3">
       <h3 style="margin-top:0;">Panel</h3>
       <div id="panel"></div>
       <hr style="border:none;border-top:1px solid #eee;margin:14px 0;">
