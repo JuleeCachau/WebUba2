@@ -1,72 +1,86 @@
 // auth.js — Registro/Login + datos usando Google Apps Script (Google Sheets)
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxcqX0TLXrFKud9gjIuQp2cq8Li-GttBYsi42rP_yCu7Av7_BHjvfnEgDIU3qRqk7uY/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyO9NdV_5LSfSboTkOw8zlmT_Ciif9Fa2_1DlZxpmue0hZpfQKZB0k3UbHQQ2b3FpI/exec"; // <-- si cambia tu WebApp (/exec), reemplazá esta URL
+
+// ===== Validaciones =====
+export function validateDni(dni) {
+  const s = String(dni || "").trim();
+  if (!/^\d{7,8}$/.test(s)) return { ok:false, error:"El DNI debe tener 7 u 8 dígitos (solo números)" };
+  return { ok:true };
+}
 
 // Reglas de password:
 // - mínimo 8
 // - al menos 1 mayúscula
 // - al menos 1 número
 // - SOLO letras y números (sin espacios ni caracteres especiales)
-export function validatePassword(pw) {
-  if (pw.length < 8) return "La contraseña debe tener mínimo 8 caracteres.";
-  if (!/^[A-Za-z0-9]+$/.test(pw)) return "Solo se permiten letras y números (sin espacios ni caracteres especiales).";
-  if (!/[A-Z]/.test(pw)) return "Debe tener al menos 1 mayúscula.";
-  if (!/[0-9]/.test(pw)) return "Debe tener al menos 1 número.";
-  return null;
+export function validatePass(pass) {
+  const p = String(pass || "");
+  if (p.length < 8) return { ok:false, error:"La contraseña debe tener mínimo 8 caracteres." };
+  if (!/[A-Z]/.test(p)) return { ok:false, error:"La contraseña debe tener al menos 1 mayúscula." };
+  if (!/\d/.test(p)) return { ok:false, error:"La contraseña debe tener al menos 1 número." };
+  if (!/^[A-Za-z0-9]+$/.test(p)) return { ok:false, error:"La contraseña solo puede tener letras y números (sin espacios ni caracteres especiales)." };
+  return { ok:true };
 }
 
-export async function sha256(text) {
-  const data = new TextEncoder().encode(text);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+// ===== Helpers =====
+async function sha256(text) {
+  const enc = new TextEncoder();
+  const buf = await crypto.subtle.digest("SHA-256", enc.encode(String(text)));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-// CLAVE: text/plain para evitar preflight CORS en Apps Script
 async function postJson(payload) {
   const res = await fetch(APPS_SCRIPT_URL, {
     method: "POST",
+    mode: "cors",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(payload)
   });
   const txt = await res.text();
-  let data;
-  try { data = JSON.parse(txt); }
-  catch { data = { ok:false, error:"Respuesta no JSON del servidor", raw: txt }; }
-  return data;
+  try { return JSON.parse(txt); }
+  catch { return { ok:false, error:"Respuesta no JSON del servidor", raw: txt, http_status: res.status }; }
 }
 
-export async function registerUser(username, password) {
-  const u = username.trim();
-  const p = password.trim();
-  if (!u) return { ok:false, error:"Ingresá un usuario." };
-  const err = validatePassword(p);
-  if (err) return { ok:false, error: err };
+// ===== Auth =====
+export async function registerUser(usuario, pass) {
+  const u = String(usuario || "").trim();
+  const p = String(pass || "").trim();
+
+  const vd = validateDni(u);
+  if (!vd.ok) return { ok:false, error: vd.error };
+
+  const vp = validatePass(p);
+  if (!vp.ok) return { ok:false, error: vp.error };
+
   const password_hash = await sha256(p);
-  // devuelve usuario_id
-  return await postJson({ action:"register", username: u, password_hash });
+  return await postJson({ action: "register", usuario: u, password_hash });
 }
 
-export async function loginUser(username, password) {
-  const u = username.trim();
-  const p = password.trim();
-  if (!u) return { ok:false, error:"Ingresá un usuario." };
+export async function loginUser(usuario, pass) {
+  const u = String(usuario || "").trim();
+  const p = String(pass || "").trim();
+
+  const vd = validateDni(u);
+  if (!vd.ok) return { ok:false, error: vd.error };
   if (!p) return { ok:false, error:"Ingresá una contraseña." };
+
   const password_hash = await sha256(p);
-  // devuelve usuario_id
-  return await postJson({ action:"login", username: u, password_hash });
+  return await postJson({ action: "login", usuario: u, password_hash });
 }
 
+// ===== Datos =====
 export async function listMaterias() {
-  return await postJson({ action:"list_materias" });
+  return await postJson({ action: "list_materias" });
 }
 
 export async function listMateriaOrientacion() {
-  return await postJson({ action:"list_materia_orientacion" });
+  return await postJson({ action: "list_materia_orientacion" });
 }
 
 export async function loadProgress(usuario_id) {
-  return await postJson({ action:"load_progress", usuario_id });
+  return await postJson({ action: "load_progress", usuario_id });
 }
 
 export async function saveProgress(usuario_id, progreso) {
-  return await postJson({ action:"save_progress", usuario_id, progreso });
+  return await postJson({ action: "save_progress", usuario_id, progreso });
 }
