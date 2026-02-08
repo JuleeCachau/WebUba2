@@ -61,7 +61,7 @@
   <div class="row" style="align-items:flex-end; margin-bottom: 8px;">
     <div>
       <h1 style="margin:0;">Proyector CPO – UBA Derecho</h1>
-      <div class="muted small">Sitio estático (GitHub Pages). Datos de usuario en Google Sheets.</div>
+      <div class="muted small">Proyecto en progreso.</div>
     </div>
     <div style="max-width:260px;">
       <div class="muted small">Sesión</div>
@@ -80,12 +80,12 @@
       <label>Orientación</label>
       <select id="orientacion"></select>
 
-      <h4 style="margin:14px 0 6px;">Materias (checklist)</h4>
-      <div class="muted small">Mové materias entre <b>Pendientes</b> y <b>Aprobadas</b>. Se filtran desde Google Sheets por <span class="mono">Instancia_id</span>.</div>
+      <h4 style="margin:14px 0 6px;">Materias</h4>
+      <div class="muted small">Mové materias entre <b>Pendientes</b> y <b>Aprobadas</b>.</div>
 
       <div class="grid" style="margin-top:10px;">
-        <div class="card col6" style="padding:12px;">
-          <b>CPC</b> <span class="muted small">(Instancia_id = 2)</span>
+        <div class="card col12" style="padding:12px;">
+          <b>CPC</b>
           <div class="grid" style="grid-template-columns: 1fr auto 1fr; gap: 10px; margin-top:10px; align-items:center;">
             <div>
               <label class="small">Pendientes</label>
@@ -101,9 +101,11 @@
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="card col6" style="padding:12px;">
-          <b>CPO</b> <span class="muted small">(Instancia_id = 3)</span>
+      <div class="grid" style="margin-button:10px;">
+        <div class="card col12" style="padding:12px;">
+          <b>CPO</b>
           <div class="grid" style="grid-template-columns: 1fr auto 1fr; gap: 10px; margin-top:10px; align-items:center;">
             <div>
               <label class="small">Pendientes</label>
@@ -130,7 +132,6 @@
       </div>
 
       <div class="muted small" style="margin-top:10px;">
-        * Más adelante: checklist completo y guardado del progreso por usuario.
       </div>
     </div>
 
@@ -221,6 +222,7 @@
       </table>
     </div>
   </div>
+  © Julian y Caro
 </div>
 
 <script type="module">
@@ -391,8 +393,11 @@
     document.getElementById("rulesBox").innerHTML = `
       <b>Reglas base:</b>
       <div class="small muted">
-        Mensual=${DB.rules.points.mensual}, Bimestral=${DB.rules.points.bimestral}, Cuatrimestral=${DB.rules.points.cuatrimestral}.<br>
-        Límite cuatrimestre: ${DB.rules.limits.max_points_per_cuatrimestre} pts. Límite bimestre: ${DB.rules.limits.max_points_per_bimestre} pts.
+        Mensual=${DB.rules.points.mensual},
+        Bimestral=${DB.rules.points.bimestral},
+        Cuatrimestral=${DB.rules.points.cuatrimestral}.<br>
+        Límite cuatrimestre: ${DB.rules.limits.max_points_per_cuatrimestre} 
+        pts. Límite bimestre: ${DB.rules.limits.max_points_per_bimestre} pts.
       </div>
     `;
   }
