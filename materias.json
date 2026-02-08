@@ -1,0 +1,126 @@
+{
+  "version": "1.0",
+  "source": "Nueva guia del CPO (UBA Derecho) - estructura app",
+  "plans": [
+    "2004",
+    "2008"
+  ],
+  "rules": {
+    "points": {
+      "mensual": 1,
+      "bimestral": 2,
+      "cuatrimestral": 4
+    },
+    "limits": {
+      "max_points_per_cuatrimestre": 16,
+      "max_points_per_bimestre": 8
+    },
+    "eligibility": {
+      "start_points_min_blancas": 12,
+      "idioma": {
+        "require_all_blancas": true,
+        "min_negritas": 3
+      },
+      "practica": {
+        "min_blancas": 14,
+        "min_negritas": 5,
+        "min_points": 20
+      }
+    }
+  },
+  "catalog": {
+    "cpc_blancas": [
+      {
+        "id": "CPC-01",
+        "name": "Blanca 01 (ejemplo)"
+      },
+      {
+        "id": "CPC-02",
+        "name": "Blanca 02 (ejemplo)"
+      }
+    ],
+    "cpo_negritas": [
+      {
+        "id": "CPO-N-01",
+        "name": "Negrita 01 (ejemplo)"
+      },
+      {
+        "id": "CPO-N-02",
+        "name": "Negrita 02 (ejemplo)"
+      }
+    ],
+    "puntos": [
+      {
+        "id": "P-PRIV-001",
+        "name": "Derecho de Daños",
+        "plan": [
+          "2004",
+          "2008"
+        ],
+        "depto": "privado",
+        "type": "cuatrimestral",
+        "points": 4,
+        "area": "DAN",
+        "prerequisites": [],
+        "orientation_required_for": [
+          "privado"
+        ],
+        "notes": "Ejemplo. Completar según catálogo real."
+      },
+      {
+        "id": "P-PRIV-002",
+        "name": "Derecho del Consumidor",
+        "plan": [
+          "2004",
+          "2008"
+        ],
+        "depto": "privado",
+        "type": "bimestral",
+        "points": 2,
+        "area": "CON",
+        "prerequisites": [
+          "P-PRIV-001"
+        ],
+        "orientation_required_for": [
+          "privado"
+        ],
+        "notes": "Ejemplo con correlativa."
+      },
+      {
+        "id": "P-PEN-001",
+        "name": "Criminología",
+        "plan": [
+          "2004",
+          "2008"
+        ],
+        "depto": "penal",
+        "type": "bimestral",
+        "points": 2,
+        "area": "CRI",
+        "prerequisites": [],
+        "orientation_required_for": [
+          "penal"
+        ],
+        "notes": "Ejemplo."
+      },
+      {
+        "id": "P-PROC-001",
+        "name": "Procesal (Puntos) - Ejemplo",
+        "plan": [
+          "2004",
+          "2008"
+        ],
+        "depto": "procesal",
+        "type": "mensual",
+        "points": 1,
+        "area": "PRO",
+        "prerequisites": [],
+        "extra_requirements": {
+          "min_blancas": 12
+        },
+        "orientation_required_for": [],
+        "notes": "Ejemplo depto con regla especial."
+      }
+    ]
+  }
+}
